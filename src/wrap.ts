@@ -1,16 +1,19 @@
-import { State } from './state'
-import { colors, setVisible, createEl } from './util'
-import { files, ranks } from './types'
-import { createElement as createSVG } from './svg'
-import { Elements, Geometry, Notation } from './types'
+import { HeadlessState } from './state';
+import { setVisible, createEl } from './util';
+import { colors, files, ranks } from './types';
+import { createElement as createSVG, setAttributes } from './svg';
+import { Elements, Geometry, Notation } from './types';
 
-export default function wrap(element: HTMLElement, s: State, relative: boolean): Elements {
-
+export function renderWrap(element: HTMLElement, s: HeadlessState, relative: boolean): Elements {
   // .cg-wrap (element passed to Chessground)
-  //   cg-helper (12.5%)
+  //   cg-helper (12.5%, display: table)
   //     cg-container (800%)
   //       cg-board
-  //       svg
+  //       svg.cg-shapes
+  //         defs
+  //         g
+  //       svg.cg-custom-svgs
+  //         g
   //       coords.ranks
   //       coords.files
   //       piece.ghost
@@ -23,7 +26,7 @@ export default function wrap(element: HTMLElement, s: State, relative: boolean):
   // for a slight performance improvement! (avoids recomputing style)
   element.classList.add('cg-wrap');
 
-  colors.forEach(c => element.classList.toggle('orientation-' + c, s.orientation === c));
+  for (const c of colors) element.classList.toggle('orientation-' + c, s.orientation === c);
   element.classList.toggle('manipulable', !s.viewOnly);
 
   const helper = createEl('cg-helper');
@@ -37,10 +40,15 @@ export default function wrap(element: HTMLElement, s: State, relative: boolean):
   container.appendChild(board);
 
   let svg: SVGElement | undefined;
+  let customSvg: SVGElement | undefined;
   if (s.drawable.visible && !relative) {
-    svg = createSVG('svg');
+    svg = setAttributes(createSVG('svg'), { 'class': 'cg-shapes' });
     svg.appendChild(createSVG('defs'));
+    svg.appendChild(createSVG('g'));
+    customSvg = setAttributes(createSVG('svg'), { 'class': 'cg-custom-svgs' });
+    customSvg.appendChild(createSVG('g'));
     container.appendChild(svg);
+    container.appendChild(customSvg);
   }
 
   if (s.coordinates) {
@@ -69,16 +77,17 @@ export default function wrap(element: HTMLElement, s: State, relative: boolean):
     board,
     container,
     ghost,
-    svg
+    svg,
+    customSvg,
   };
 }
 
-function renderCoords(elems: any[], className: string): HTMLElement {
+function renderCoords(elems: readonly string[], className: string): HTMLElement {
   const el = createEl('coords', className);
   let f: HTMLElement;
-  for (let i in elems) {
+  for (const elem of elems) {
     f = createEl('coord');
-    f.textContent = elems[i];
+    f.textContent = elem;
     el.appendChild(f);
   }
   return el;

@@ -1,7 +1,7 @@
-import * as util from './util'
-import * as cg from './types'
+import * as util from './util';
+import * as cg from './types';
 
-type Mobility = (x1:number, y1:number, x2:number, y2:number) => boolean;
+type Mobility = (x1: number, y1: number, x2: number, y2: number) => boolean;
 
 const bPalace = [
     [4, 10], [5, 10], [6, 10],
@@ -25,26 +25,24 @@ const wPalace7 = [
     [3, 1], [4, 1], [5, 1],
 ];
 
-function diff(a: number, b:number):number {
+function diff(a: number, b: number): number {
   return Math.abs(a - b);
 }
 
 function pawn(color: cg.Color): Mobility {
-  return (x1, y1, x2, y2) => diff(x1, x2) < 2 && (
-    color === 'white' ? (
-      // allow 2 squares from 1 and 8, for horde
-      y2 === y1 + 1 || (y1 <= 2 && y2 === (y1 + 2) && x1 === x2)
-    ) : (
-      y2 === y1 - 1 || (y1 >= 7 && y2 === (y1 - 2) && x1 === x2)
-    )
-  );
+  return (x1, y1, x2, y2) =>
+    diff(x1, x2) < 2 &&
+    (color === 'white'
+      ? // allow 2 squares from first two ranks, for horde
+        y2 === y1 + 1 || (y1 <= 1 && y2 === y1 + 2 && x1 === x2)
+      : y2 === y1 - 1 || (y1 >= 6 && y2 === y1 - 2 && x1 === x2));
 }
 
-const knight: Mobility = (x1, y1, x2, y2) => {
+export const knight: Mobility = (x1, y1, x2, y2) => {
   const xd = diff(x1, x2);
   const yd = diff(y1, y2);
   return (xd === 1 && yd === 2) || (xd === 2 && yd === 1);
-}
+};
 
 const wazir: Mobility = (x1, y1, x2, y2) => {
   const xd = diff(x1, x2);
@@ -54,15 +52,15 @@ const wazir: Mobility = (x1, y1, x2, y2) => {
 
 const bishop: Mobility = (x1, y1, x2, y2) => {
   return diff(x1, x2) === diff(y1, y2);
-}
+};
 
 const rook: Mobility = (x1, y1, x2, y2) => {
   return x1 === x2 || y1 === y2;
-}
+};
 
-const queen: Mobility = (x1, y1, x2, y2) => {
+export const queen: Mobility = (x1, y1, x2, y2) => {
   return bishop(x1, y1, x2, y2) || rook(x1, y1, x2, y2);
-}
+};
 
 const kniroo: Mobility = (x1, y1, x2, y2) => {
   return knight(x1, y1, x2, y2) || rook(x1, y1, x2, y2);
@@ -73,14 +71,13 @@ const knibis: Mobility = (x1, y1, x2, y2) => {
 }
 
 function king(color: cg.Color, rookFiles: number[], canCastle: boolean): Mobility {
-  return (x1, y1, x2, y2)  => (
-    diff(x1, x2) < 2 && diff(y1, y2) < 2
-  ) || (
-    canCastle && y1 === y2 && y1 === (color === 'white' ? 1 : 8) && (
-      (x1 === 5 && ((util.containsX(rookFiles, 1) && x2 === 3) || (util.containsX(rookFiles, 8) && x2 === 7))) ||
-      util.containsX(rookFiles, x2)
-    )
-  );
+  return (x1, y1, x2, y2) =>
+    (diff(x1, x2) < 2 && diff(y1, y2) < 2) ||
+    (canCastle &&
+      y1 === y2 &&
+      y1 === (color === 'white' ? 0 : 7) &&
+      ((x1 === 4 && ((x2 === 2 && rookFiles.includes(0)) || (x2 === 6 && rookFiles.includes(7)))) ||
+        rookFiles.includes(x2)));
 }
 
 // makruk/sittuyin queen
@@ -276,18 +273,20 @@ const spider: Mobility = (x1, y1, x2, y2) => {
   );
 }
 
-function rookFilesOf(pieces: cg.Pieces, color: cg.Color, firstRankIs0: boolean) {
-  const backrank = color == 'white' ? '1' : '8';
-  return Object.keys(pieces).filter(key => {
-    const piece = pieces[key];
-    return key[1] === backrank && piece && piece.color === color && piece.role === 'rook';
-  }).map((key: string ) => util.key2pos(key as cg.Key, firstRankIs0)[0]);
+function rookFilesOf(pieces: cg.Pieces, color: cg.Color) {
+  const backrank = color === 'white' ? '1' : '8';
+  const files = [];
+  for (const [key, piece] of pieces) {
+    if (key[1] === backrank && piece.color === color && piece.role === 'rook') {
+      files.push(util.key2pos(key)[0]);
+    }
+  }
+  return files;
 }
 
-export default function premove(pieces: cg.Pieces, key: cg.Key, canCastle: boolean, geom: cg.Geometry, variant: cg.Variant): cg.Key[] {
-  const firstRankIs0 = cg.dimensions[geom].height === 10;
-  const piece = pieces[key]!,
-  pos = util.key2pos(key, firstRankIs0);
+export function premove(pieces: cg.Pieces, key: cg.Key, canCastle: boolean, geom: cg.Geometry, variant: cg.Variant): cg.Key[] {
+  const piece = pieces.get(key)!,
+  pos = util.key2pos(key);
   let mobility: Mobility;
 
   switch (geom) {
@@ -429,7 +428,7 @@ export default function premove(pieces: cg.Pieces, key: cg.Key, canCastle: boole
       if (variant === 'synochess' && piece.color === 'black') {
         mobility = sking;
       } else {
-        mobility = king(piece.color, rookFilesOf(pieces, piece.color, firstRankIs0), canCastle);
+        mobility = king(piece.color, rookFilesOf(pieces, piece.color), canCastle);
       }
       break;
     case 'hawk':
@@ -512,15 +511,8 @@ export default function premove(pieces: cg.Pieces, key: cg.Key, canCastle: boole
     };
     break;
   };
-  const allkeys = util.allKeys[geom];
 
-  const pos2keyGeom = (geom: cg.Geometry) => ( (pos: cg.Pos) => util.pos2key(pos, geom) );
-  const pos2key = pos2keyGeom(geom);
-
-  const key2posRank0 = (firstrank0: boolean) => ( (key: cg.Key) => util.key2pos(key, firstrank0) );
-  const key2pos = key2posRank0(firstRankIs0);
-
-  return allkeys.map(key2pos).filter(pos2 => {
+  return util.allKeys[geom].map(util.key2pos).filter(pos2 => {
     return (pos[0] !== pos2[0] || pos[1] !== pos2[1]) && mobility(pos[0], pos[1], pos2[0], pos2[1]);
-  }).map(pos2key);
+  }).map(util.pos2key);
 };

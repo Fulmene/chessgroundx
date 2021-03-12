@@ -17,7 +17,6 @@ const rolesDobutsu: { [letter: string]: cg.Role } = {
 const rolesXiangqi: { [letter: string]: cg.Role } = {
     p: 'pawn', r: 'rook', n: 'knight', b: 'bishop', k: 'king', c: 'cannon', a: 'advisor', m: 'banner' };
 
-
 const lettersVariants = {
     pawn: 'p', rook: 'r', knight: 'n', bishop: 'b', queen: 'q', king: 'k', met: 'm', ferz: 'f', silver: 's', chancellor: 'c', archbishop: 'a', hawk: 'h', elephant: 'e',
     ppawn: '+p', pknight: '+n', pbishop: '+b', prook: '+r', pferz: '+f', yurt: 'y', lancer: 'l',
@@ -37,8 +36,8 @@ const lettersXiangqi = {
 export function read(fen: cg.FEN, geom: cg.Geometry): cg.Pieces {
   if (fen === 'start') fen = initial;
   if (fen.indexOf('[') !== -1) fen = fen.slice(0, fen.indexOf('['));
-  const pieces: cg.Pieces = {};
-  let row: number = fen.split("/").length;
+  const pieces: cg.Pieces = new Map();
+  let row: number = fen.split("/").length - 1;
   let col: number = 0;
   let promoted: boolean = false;
 
@@ -60,17 +59,18 @@ export function read(fen: cg.FEN, geom: cg.Geometry): cg.Pieces {
 
   for (const c of fen) {
     switch (c) {
-      case ' ': return pieces;
+      case ' ':
+        return pieces;
       case '/':
         --row;
-        if (row === 0) return pieces;
+        if (row < 0) return pieces;
         col = 0;
         break;
       case '+':
         promoted = true;
         break;
       case '~':
-        const piece = pieces[pos2key([col, row], geom)];
+        const piece = pieces.get(pos2key([col, row]));
         if (piece) {
             piece.promoted = true;
             if (piece.role=='met') piece.role = 'ferz';
@@ -80,7 +80,6 @@ export function read(fen: cg.FEN, geom: cg.Geometry): cg.Pieces {
         const nb = c.charCodeAt(0);
         if (nb < 58) col += (c === '0') ? 9 : nb - 48;
         else {
-          ++col;
           const role = c.toLowerCase();
           let piece = {
             role: roles[role],
@@ -91,7 +90,8 @@ export function read(fen: cg.FEN, geom: cg.Geometry): cg.Pieces {
             piece.promoted = true;
             promoted = false;
           };
-          pieces[pos2key([col, row], geom)] = piece;
+          pieces.set(pos2key([col, row]), piece);
+          ++col;
         }
     }
   }
@@ -118,12 +118,18 @@ export function write(pieces: cg.Pieces, geom: cg.Geometry): cg.FEN {
     break
   };
   const bd = cg.dimensions[geom];
-  return invNRanks.slice(-bd.height).map(y => NRanks.slice(0, bd.width).map(x => {
-      const piece = pieces[pos2key([x, y], geom)];
-      if (piece) {
-        const letter: string = letters[piece.role] + ((piece.promoted && (letters[piece.role].charAt(0) !== '+')) ? '~' : '');
-        return (piece.color === 'white') ? letter.toUpperCase() : letter;
-      } else return '1';
-    }).join('')
-  ).join('/').replace(/1{2,}/g, s => s.length.toString());
+  return invNRanks.slice(-bd.height)
+    .map(y =>
+      NRanks.slice(0, bd.width)
+        .map(x => {
+          const piece = pieces.get(pos2key([x, y]));
+          if (piece) {
+            const letter: string = letters[piece.role] + ((piece.promoted && (letters[piece.role].charAt(0) !== '+')) ? '~' : '');
+            return (piece.color === 'white') ? letter.toUpperCase() : letter;
+          } else return '1';
+        })
+        .join('')
+    )
+    .join('/')
+    .replace(/1{2,}/g, s => s.length.toString());
 }
