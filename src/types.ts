@@ -136,6 +136,8 @@ export type Unbind = () => void;
 export type Milliseconds = number;
 export type KHz = number;
 
+export type Info = Record<Color, Partial<Record<Role, string>>>;
+
 export type RanksPosition = 'left' | 'right';
 
 export const colors = ['white', 'black'] as const;

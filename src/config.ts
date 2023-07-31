@@ -85,6 +85,7 @@ export interface Config {
   notation?: cg.Notation; // coord notation style
   kingRoles?: cg.Role[]; // roles to be marked with check
   pocketRoles?: cg.PocketRoles; // what pieces have slots in the pocket for each color
+  info?: cg.Info; // Text info to be shown on a particular piece type
 }
 
 export function applyAnimation(state: HeadlessState, config: Config): void {
@@ -126,6 +127,12 @@ export function configure(state: HeadlessState, config: Config): void {
 
   // fix move/premove dests
   if (state.selectable.selected) setSelected(state, state.selectable.selected, state.selectable.fromPocket);
+
+  if (config.info) {
+    state.info = new Map();
+    for (const [k, p] of state.boardState.pieces)
+      if (p.role in config.info[p.color]) state.info.set(k, config.info[p.color][p.role]!);
+  }
 
   applyAnimation(state, config);
 

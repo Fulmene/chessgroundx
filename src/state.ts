@@ -91,6 +91,7 @@ export interface HeadlessState {
   notation: cg.Notation;
   kingRoles: cg.Role[]; // roles to be marked with check
   pocketRoles?: cg.PocketRoles; // undefined for non-pocket variants. Possible pieces that a pocket can hold for each color
+  info?: Map<cg.Key, string> // Text info to be shown on a particular piece type
 }
 
 export interface State extends HeadlessState {
